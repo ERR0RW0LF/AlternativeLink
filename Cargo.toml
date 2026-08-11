@@ -1,0 +1,11 @@
+[package]
+name = "AlternativeLink"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+#socket = "0.0.7"
+tokio = { version = "1.53.1", features = ["full"] }
+if-addrs = "0.15.0"
+tokio-util = "0.7.19"
+
