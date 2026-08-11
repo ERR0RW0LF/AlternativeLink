@@ -28,10 +28,10 @@ else:
     raise
 
 
-code = "1-3-3-7"
+CODE = "1-3-3-7"
 
 BROADCAST_PORT = 1337
-MESSAGE = f"{code} {IPAddr}\n".encode("utf-8")
+MESSAGE = f"{CODE} {IPAddr}\n".encode("utf-8")
 
 pprint(MESSAGE)
 
@@ -65,8 +65,8 @@ async def listener():
                 await asyncio.sleep(0.1)
                 continue
             decoded_message: str = message.decode("utf-8")
-            if decoded_message.startswith(f"{code} ") and decoded_message.endswith("\n"):
-                possible_ip = decoded_message.removeprefix(f"{code} ").removesuffix("\n")
+            if decoded_message.startswith(f"{CODE} ") and decoded_message.endswith("\n"):
+                possible_ip = decoded_message.removeprefix(f"{CODE} ").removesuffix("\n")
                 if possible_ip != IPAddr and other_link_ip is None:
                     other_link_ip = possible_ip
             elif decoded_message.startswith("PING ") and decoded_message.endswith("\n"):
