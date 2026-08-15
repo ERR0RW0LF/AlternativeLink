@@ -151,7 +151,7 @@ async fn direct_comms_check_task(sock: tokio::net::UdpSocket, ip_receiver: watch
 #[tokio::main]
 async fn main() -> io::Result<()>{
     let ipaddr = get_ipaddr().unwrap();
-    let sock_listen: UdpSocket = UdpSocket::bind(format!("{}:{}",ipaddr,PORT) as String).await?;
+    let sock_listen: UdpSocket = UdpSocket::bind(format!("0.0.0.0:{}",PORT) as String).await?;
     let _ = sock_listen.set_broadcast(true);
     let sock_broadcast: UdpSocket = UdpSocket::bind(format!("{}:0",ipaddr) as String).await?;
     let _ = sock_broadcast.set_broadcast(true);
