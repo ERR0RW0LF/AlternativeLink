@@ -3,6 +3,9 @@ name = "AlternativeLink"
 version = "0.1.0"
 edition = "2024"
 
+[profile.dev]
+debug = "line-tables-only"
+
 [dependencies]
 #socket = "0.0.7"
 tokio = { version = "1.53.1", features = ["full"] }
