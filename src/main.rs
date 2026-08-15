@@ -20,21 +20,23 @@ impl TryFrom<&str> for Message {
     type Error = &'static str;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value.trim().split(" ").collect::<Vec<&str>>() {
-            g if g[0] == CODE => {
-                match g[1].parse::<Ipv4Addr>() {
+
+
+        match value.trim().split(' ').collect::<Vec<_>>().as_slice() {
+            [cmd, ip] if *cmd == CODE => {
+                match ip.parse::<Ipv4Addr>() {
                     Ok(d) => {Ok(Message::Discover(d))},
                     Err(e) => {Err("Parsing str to Ipv4Addr")}
                 }
             },
-            g if g[0] == "PING" => {
-                match g[1].parse::<Ipv4Addr>() {
+            [cmd, ip] if *cmd == "PING" => {
+                match ip.parse::<Ipv4Addr>() {
                     Ok(d) => {Ok(Message::Ping(d))},
                     Err(e) => {Err("Parsing str to Ipv4Addr")}
                 }
             },
-            g if g[0] == "ACK" => {
-                match g[1].parse::<Ipv4Addr>() {
+            [cmd, ip] if *cmd == "ACK" => {
+                match ip.parse::<Ipv4Addr>() {
                     Ok(d) => {Ok(Message::Ack(d))},
                     Err(e) => {Err("Parsing str to Ipv4Addr")}
                 }
