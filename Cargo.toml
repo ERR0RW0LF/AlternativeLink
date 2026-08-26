@@ -11,4 +11,6 @@ debug = "line-tables-only"
 tokio = { version = "1.53.1", features = ["full"] }
 if-addrs = "0.15.0"
 tokio-util = "0.7.19"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing = "0.1.44"
 
