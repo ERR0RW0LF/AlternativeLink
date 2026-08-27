@@ -285,8 +285,20 @@ async fn main() -> io::Result<()>{
         })
         .init();
 
+    let ipaddr = match args.interface {
+        Some(ipaddr) => {
+            if validate_interface(ipaddr) {
+                ipaddr
+            } else {
+                get_ipaddr().unwrap()
+            }
+        },
+        None => {
+            get_ipaddr().unwrap()
+        }
+    };
 
-    let ipaddr = get_ipaddr().unwrap();
+
     let sock_listen: UdpSocket = UdpSocket::bind(format!("0.0.0.0:{}",PORT) as String).await?;
     if let Err(e) = sock_listen.set_broadcast(true) {
         warn!("Couldn't set listening socket broadcasting: {}", e)
@@ -380,7 +392,20 @@ async fn main() -> io::Result<()>{
 
 
 
-
+fn validate_interface(ipaddr: Ipv4Addr) -> bool{
+    let mut possible_ips: Vec<Ipv4Addr> = Vec::new();
+    for iface in if_addrs::get_if_addrs().unwrap() {
+        match iface.addr {
+            IfAddr::V4(ifv4_addr) => {
+                if !ifv4_addr.is_loopback() {
+                    possible_ips.push(ifv4_addr.ip);
+                }
+            },
+            _ => {}
+        }
+    }
+    possible_ips.contains(&ipaddr)
+}
 
 
 fn get_ipaddr() -> Option<Ipv4Addr>{
