@@ -1,4 +1,5 @@
 use std::{fmt::Display, io::{self, Write, stdin, stdout}, net::Ipv4Addr, ops::Index, process::exit, sync::{Arc, atomic::{AtomicBool, Ordering}}, time::Duration};
+use clap::{Parser, builder::styling};
 use tokio::{sync::watch::{self, Receiver}, time::sleep};
 use tokio_util::sync::CancellationToken;
 use tokio::net::UdpSocket;
@@ -208,6 +209,53 @@ async fn direct_comms_check_task(sock: Arc<tokio::net::UdpSocket>, ip_receiver: 
 
 
 
+const STYLES: styling::Styles = styling::Styles::styled()
+    .header(styling::AnsiColor::Green.on_default().bold())
+    .usage(styling::AnsiColor::Green.on_default().bold())
+    .literal(styling::AnsiColor::Blue.on_default().bold())
+    .placeholder(styling::AnsiColor::Cyan.on_default());
+
+
+
+
+#[derive(clap::Parser, Debug)]
+#[command(styles = STYLES)]
+struct Cli {
+    /// Interface IP to bind to (skips interactive picker)
+    #[arg(short, long)]
+    interface: Option<Ipv4Addr>,
+
+    /// UDP port to use
+    #[arg(short, long, default_value_t = 1337)]
+    port: u16,
+
+    /// Shared room/pairing code
+    #[arg(short, long, default_value = "1-3-3-7")]
+    code: String,
+
+    /// Broadcast interval in seconds
+    #[arg(long, default_value_t = 5)]
+    broadcast_interval: u64,
+
+    /// Run non-interactively: auto-test connection as soon as a peer is found
+    #[arg(long)]
+    auto_test: bool,
+
+    /// Increase log verbosity (-v -vv)
+    #[arg(short, action = clap::ArgAction::Count)]
+    verbose: u8,
+
+    /// Emit machine-readable JSON status lines insted of prose
+    #[arg(long)]
+    json: bool,
+}
+
+
+
+
+
+
+
 
 
 /*
@@ -223,6 +271,10 @@ mmm        mmm   aaa        aaa     iiiiiiiiii     nnn      nnnnn
 // MAIN
 #[tokio::main]
 async fn main() -> io::Result<()>{
+    let args = Cli::parse();
+    println!("{:?}", args);
+
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
