@@ -4,7 +4,7 @@ use tokio::{sync::watch::{self, Receiver}, time::sleep};
 use tokio_util::sync::CancellationToken;
 use tokio::net::UdpSocket;
 use if_addrs::IfAddr;
-use tracing::{debug, info, warn};
+use tracing::{Level, debug, info, warn};
 
 struct SharedState {
     finished: CancellationToken,
@@ -276,10 +276,13 @@ async fn main() -> io::Result<()>{
 
 
     tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into())
-        )
+        .with_max_level(match args.verbose {
+            i if i <= 0 => {Level::WARN},
+            i if i <= 1 => {Level::INFO},
+            i if i == 2 => {Level::DEBUG},
+            i if i == 3 => {Level::TRACE},
+            i => {println!("We don't have v*{}. Using Info level as fall back.", i); Level::INFO}
+        })
         .init();
 
 
