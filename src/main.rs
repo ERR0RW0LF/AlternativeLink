@@ -1,10 +1,16 @@
-use std::{fmt::Display, io::{self, Write, stdin, stdout}, net::Ipv4Addr, ops::Index, process::exit, sync::{Arc, atomic::{AtomicBool, Ordering}}, time::Duration};
+use std::{
+    io::{self, Write, stdin, stdout}, 
+    net::Ipv4Addr, 
+    process::exit, 
+    sync::{Arc, atomic::{AtomicBool, Ordering}}, 
+    time::Duration
+};
 use clap::{Parser, builder::styling};
-use tokio::{sync::watch::{self, Receiver}, time::sleep};
+use tokio::{sync::{Notify, watch::{self, Receiver}}, time::sleep};
 use tokio_util::sync::CancellationToken;
 use tokio::net::UdpSocket;
 use if_addrs::IfAddr;
-use tracing::{Level, debug, info, warn};
+use tracing::{Level, debug, info, trace, warn};
 
 struct SharedState {
     finished: CancellationToken,
@@ -92,7 +98,8 @@ const PORT: usize = 1337;
 
 async fn listen_all_messages(
     sock: tokio::net::UdpSocket, shared_state: Arc<SharedState>, 
-    own_ipaddr: Ipv4Addr, direct_working: Arc<AtomicBool>
+    own_ipaddr: Ipv4Addr, 
+    direct_working: Arc<AtomicBool>, direct_working_notify: Arc<Notify>
 ) -> io::Result<()> {
     let mut other_ip_rec: Option<Ipv4Addr> = None;
     
@@ -145,6 +152,7 @@ async fn listen_all_messages(
                             Some(g) => {
                                 if m == g {
                                     direct_working.store(true, Ordering::Relaxed);
+                                    direct_working_notify.notify_waiters();
                                 }
                             },
                             None => {}
@@ -158,24 +166,43 @@ async fn listen_all_messages(
 }
 
 
-async fn broadcast_task(sock: Arc<tokio::net::UdpSocket>, msg: Vec<u8>, cancel: CancellationToken) -> io::Result<()> {
+
+
+
+
+
+
+async fn broadcast_task(sock: Arc<tokio::net::UdpSocket>, msg: Vec<u8>, cancel: CancellationToken, broadcast_interval: u64) -> io::Result<()> {
     loop {
         tokio::select! {
             _ = cancel.cancelled() => break,
             _ = sock.send_to(&msg, format!("255.255.255.255:{}",PORT)) => {
-                sleep(Duration::from_secs(5)).await;
+                trace!("Send a broadcast, now waiting for {}s", broadcast_interval);
+                sleep(Duration::from_secs(broadcast_interval)).await;
             }
         }
     }
     Ok(())
 }
 
-async fn direct_comms_check_task(sock: Arc<tokio::net::UdpSocket>, ip_receiver: watch::Receiver<Option<Ipv4Addr>>, cancel: CancellationToken, direct_working: Arc<AtomicBool>, ipaddr: Ipv4Addr) -> io::Result<()> {
+
+
+
+
+
+
+
+async fn direct_comms_check_task(
+    sock: Arc<tokio::net::UdpSocket>, ip_receiver: watch::Receiver<Option<Ipv4Addr>>, 
+    cancel: CancellationToken, 
+    direct_working: Arc<AtomicBool>, direct_working_notify: Arc<Notify>,
+    ipaddr: Ipv4Addr,
+    max_tries: u64
+) -> io::Result<()> {
     println!("Test worked {} {}", ip_receiver.borrow().unwrap(), cancel.is_cancelled());
     let mut probe_interval = tokio::time::interval(Duration::from_secs(5));
     
-    const MAX_TRIES: usize  = 20;
-    let mut timeout_counter: usize = 0;
+    let mut timeout_counter: u64 = 0;
 
     loop {
         let is_working = direct_working.load(Ordering::Relaxed);
@@ -187,15 +214,22 @@ async fn direct_comms_check_task(sock: Arc<tokio::net::UdpSocket>, ip_receiver: 
 
         tokio::select! {
             _ = cancel.cancelled() => break,
+            _ = direct_working_notify.notified() => {
+                if direct_working.load(Ordering::Relaxed) {
+                    info!("Connection Worked");
+                    cancel.cancel();
+                    break;
+                }
+            },
             _ = probe_interval.tick(), if !is_working => {
                 let ip_opt = *ip_receiver.borrow();
                 if let Some(ip) = ip_opt {
                     match timeout_counter {
-                        i if timeout_counter > MAX_TRIES => { warn!("Didn't get a Ack in time, exhausted retries ({}/{}). Exiting.", i,  MAX_TRIES); exit(0)}
-                        i if timeout_counter > 0 => { warn!("Retrying {}/{}", i, MAX_TRIES) },
+                        i if timeout_counter > max_tries => { warn!("Didn't get a Ack in time, exhausted retries ({}/{}). Exiting.", i,  max_tries); exit(0)}
+                        i if timeout_counter > 0 => { warn!("Retrying {}/{}", i, max_tries) },
                         _ => {},
                     }
-                    info!("Pinging");
+                    trace!("Pinging");
                     if let Err(e) = sock.send_to(format!("PING {}\n", ipaddr).as_bytes(), format!("{}:{}",ip,PORT)).await {
                         warn!("Error sending with: {}", e)
                     };
@@ -245,9 +279,13 @@ struct Cli {
     #[arg(short, action = clap::ArgAction::Count)]
     verbose: u8,
 
-    /// Emit machine-readable JSON status lines insted of prose
+    /// Emit machine-readable JSON status lines instead of prose
     #[arg(long)]
     json: bool,
+
+    /// Maximum retries for the direct connection test
+    #[arg(long, default_value_t = 20)]
+    max_direct_tries: u64
 }
 
 
@@ -299,77 +337,103 @@ async fn main() -> io::Result<()>{
     };
 
 
+    trace!(own_ip = ipaddr.to_string());
+
+
+
     let sock_listen: UdpSocket = UdpSocket::bind(format!("0.0.0.0:{}",PORT) as String).await?;
+    trace!("Started listening socket.");
+
     if let Err(e) = sock_listen.set_broadcast(true) {
         warn!("Couldn't set listening socket broadcasting: {}", e)
     }
+    trace!("Set broadcasting to true for listening socket.");
 
     let sock_sender: Arc<UdpSocket> = Arc::new(UdpSocket::bind(format!("{}:0",ipaddr) as String).await?);
+    trace!("Started sender socket.");
+
     if let Err(e) = sock_sender.set_broadcast(true) {
         warn!("Couldn't set sender socket broadcasting: {}", e)
     }
+    trace!("Set broadcasting to true for sender socket.");
+
 
 
     let token = CancellationToken::new();
+    trace!("Created CancellationToken.");
+
     let direct_working = Arc::new(AtomicBool::new(false));
+    trace!("Created direct_working flag using an AtomicBool.");
+
     let (tx, rx) = watch::channel(None);
+    trace!("Created Sender and Receiver for the Ipv4Addr of the other device.");
+
+    let direct_working_notify = Arc::new(Notify::new());
+    
 
     let shared_state: Arc<SharedState> = Arc::new(SharedState{finished: token.clone(), direct_working: direct_working.clone(), other_link_ip: tx});
-    
-    let message = format!("{} {}\n", CODE, ipaddr);
+    trace!("Made everything into a shared state.");
 
-    println!("{}", ipaddr);
+    let message = format!("{} {}\n", CODE, ipaddr);
+    trace!(msg=message);
+
     let mut tasks = Vec::new();
     let shared_state_clone = shared_state.clone();
     let token_clone = token.clone();
     let sock_sender_clone = sock_sender.clone();
-    tasks.push(tokio::spawn(async move {broadcast_task(sock_sender_clone, message.as_bytes().to_vec(), token_clone).await}));
-    
+    tasks.push(tokio::spawn(async move {broadcast_task(sock_sender_clone, message.as_bytes().to_vec(), token_clone, args.broadcast_interval).await}));
+    trace!("Pushed the broadcast_task to tasks.");
+
     let token_clone = token.clone();
     let shared_state_clone = shared_state.clone();
     let directly_working_clone = direct_working.clone();
-    tasks.push(tokio::spawn(async move {listen_all_messages(sock_listen, shared_state_clone, ipaddr.clone(), directly_working_clone).await}));
+    let direct_working_notify_clone = direct_working_notify.clone();
+    tasks.push(tokio::spawn(async move {listen_all_messages(sock_listen, shared_state_clone, ipaddr.clone(), directly_working_clone, direct_working_notify_clone).await}));
+    trace!("Pushed the listen_all_messages to tasks.");
     
+
     let mut other_link_ip_rx_clone: Receiver<Option<Ipv4Addr>> = rx.clone();
     loop {
         if other_link_ip_rx_clone.changed().await.is_err() { break; }
         match *other_link_ip_rx_clone.borrow() {
-            Some(_) => {break;},
+            Some(_) => {trace!("other_link_ip is now set. Going to the next step.");break;},
             None => {continue;}
         }
     }
 
     let token_clone = token.clone();
     let other_link_ip_rx_clone: Receiver<Option<Ipv4Addr>> = rx.clone();
-    if let Err(e) = tokio::task::spawn_blocking(move || {
-        use std::io::stdin;
-        loop {
-            let mut buffer = String::new();
-            let other_ip = other_link_ip_rx_clone.borrow().unwrap();
-            println!("1: Quit\n2: Test Connection to {}", other_ip);
-            let stdin = stdin();
-            print!("Please chose the option to use (num): ");
-            if let Err(e) = stdout().flush() {
-                warn!("Problem whilst flushing stdout: {}", e)
-            }
-            stdin.read_line(&mut buffer).expect("Reading your input didn't work");
-            let choice: usize = buffer.trim().parse::<usize>().unwrap_or(0);
+    if !args.auto_test {
+        if let Err(e) = tokio::task::spawn_blocking(move || {
+            use std::io::stdin;
+            loop {
+                let mut buffer = String::new();
+                let other_ip = other_link_ip_rx_clone.borrow().unwrap();
+                println!("1: Quit\n2: Test Connection to {}", other_ip);
+                let stdin = stdin();
+                print!("Please chose the option to use (num): ");
+                if let Err(e) = stdout().flush() {
+                    warn!("Problem whilst flushing stdout: {}", e)
+                }
+                stdin.read_line(&mut buffer).expect("Reading your input didn't work");
+                let choice: usize = buffer.trim().parse::<usize>().unwrap_or(0);
 
-            match choice {
-                1 => {token.cancel();break;},
-                2 => {break;},
-                _ => {},
+                match choice {
+                    1 => {token.cancel();break;},
+                    2 => {break;},
+                    _ => {},
+                }
             }
+
+        }).await {
+            warn!("Something whet wrong with the input for testing the direct connection: {}", e)
         }
-        
-    }).await {
-        warn!("Something whet wrong with the input for testing the direct connection: {}", e)
     }
 
     let other_link_ip_rx_clone: Receiver<Option<Ipv4Addr>> = rx.clone();
     
     let sock_sender_clone = sock_sender.clone();
-    tasks.push(tokio::spawn(async move {direct_comms_check_task(sock_sender_clone, other_link_ip_rx_clone, token_clone, direct_working, ipaddr).await}));
+    tasks.push(tokio::spawn(async move {direct_comms_check_task(sock_sender_clone, other_link_ip_rx_clone, token_clone, direct_working, direct_working_notify, ipaddr, args.max_direct_tries).await}));
 
 
     for task in tasks {
