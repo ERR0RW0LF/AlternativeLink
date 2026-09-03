@@ -50,3 +50,4 @@ Set the `IP address:` field to `17216.24.2` like in the image shown. Then set th
 
 Now just click OK and OK again, then you should be set.
 </details>
+
