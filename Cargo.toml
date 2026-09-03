@@ -2,6 +2,10 @@
 name = "AlternativeLink"
 version = "0.1.0"
 edition = "2024"
+publish = false
+readme = "README.md"
+repository = "https://github.com/ERR0RW0LF/AlternativeLink"
+
 
 [profile.dev]
 debug = "line-tables-only"
