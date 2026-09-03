@@ -12,6 +12,10 @@ This is probably one of the easies combos.
 Step 1:
 Get both in the same network. Either directly connecting the Shark Jack to the PC in `static` attackmode and configuring the adapter settings.
 
+
+<details>
+<summary>Windows network setup</summary>
+
 ![Steps 1.1 and 1.2](assets/win_adapter_1-2.png)
 
 Step 1.1:
@@ -45,3 +49,4 @@ Step 1.6:
 Set the `IP address:` field to `17216.24.2` like in the image shown. Then set the `Subnet mask:` to `255.255.255.0`. And lastly set `Default gateway:` to `172.16.24.1`.
 
 Now just click OK and OK again, then you should be set.
+</details>
