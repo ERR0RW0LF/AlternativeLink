@@ -14,7 +14,6 @@ use tracing::{Level, debug, info, trace, warn};
 
 struct SharedState {
     finished: CancellationToken,
-    direct_working: Arc<AtomicBool>,
     other_link_ip: watch::Sender<Option<Ipv4Addr>>,
 }
 
@@ -43,13 +42,13 @@ impl TryFrom<&str> for Message {
             [cmd, ip] if *cmd == "PING" => {
                 match ip.parse::<Ipv4Addr>() {
                     Ok(d) => {Ok(Message::Ping(d))},
-                    Err(e) => {Err("Parsing str to Ipv4Addr")}
+                    Err(_) => {Err("Parsing str to Ipv4Addr")}
                 }
             },
             [cmd, ip] if *cmd == "ACK" => {
                 match ip.parse::<Ipv4Addr>() {
                     Ok(d) => {Ok(Message::Ack(d))},
-                    Err(e) => {Err("Parsing str to Ipv4Addr")}
+                    Err(_) => {Err("Parsing str to Ipv4Addr")}
                 }
             },
             [cmd, ip] if let Ok(g) = ip.parse::<Ipv4Addr>() => {
@@ -67,7 +66,7 @@ impl TryFrom<&str> for Message {
     
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 struct Code {
     code_uint: usize
 }
@@ -93,46 +92,53 @@ impl std::fmt::Display for Code {
     }
 }
 
-const CODE: &str = "1-3-3-7";
-const PORT: usize = 1337;
+const CODE: usize = 1337;
+const PORT: u16 = 1337;
 
 async fn listen_all_messages(
     sock: tokio::net::UdpSocket, shared_state: Arc<SharedState>, 
     own_ipaddr: Ipv4Addr, 
-    direct_working: Arc<AtomicBool>, direct_working_notify: Arc<Notify>
+    direct_working: Arc<AtomicBool>, direct_working_notify: Arc<Notify>,
+    args: Cli,
 ) -> io::Result<()> {
     let mut other_ip_rec: Option<Ipv4Addr> = None;
     
     let mut buf = [0; 1024];
+    let my_code = if let Ok(c) = Code::try_from(&args.code as &str) {
+        c
+    } else {
+        Code {code_uint: CODE}
+    };
     loop {
         tokio::select! {
             _ = shared_state.finished.cancelled() => break,
             t = sock.recv_from(&mut buf) => {
-                let (len, addr) = match t {
-                    Ok((len, addr)) => {(len,addr)},
-                    Err(e) => {continue;}
+                let len = match t {
+                    Ok((len, _)) => {len},
+                    Err(e) => {debug!("{}", e);continue;}
                 };
                 
                 let s = match str::from_utf8(&buf[..len] as &[u8]) {
                     Ok(v) => v,
-                    Err(e) => {continue;}
+                    Err(e) => {debug!("{}", e);continue;}
                 };
                 
                 let message = match Message::try_from(s) {
                     Ok(v) => {v},
-                    Err(e) => {continue;}
+                    Err(e) => {debug!("{}", e);continue;}
                 };
 
                 // gate for against own messages 
                 if message.sender_ip() == own_ipaddr { continue; } 
                 //println!("{:?} bytes received from {:?}", len, addr);
                 
+
                 match message {
                     Message::Discover(code, ip) => {
                         match other_ip_rec {
                             Some(_) => {},
                             None => {
-                                if (String::from(CODE)) == code.to_string() {
+                                if my_code == code {
                                     other_ip_rec = Some(ip);
                                     if let Err(e) = shared_state.other_link_ip.send(Some(ip)) {
                                         warn!("Couldn't send the discoverd ip using the sender on the shared channel: {}", e)
@@ -144,7 +150,7 @@ async fn listen_all_messages(
                     Message::Ping(m) => {
                         debug!("Got PING");
                         let message = format!("ACK {}\n", own_ipaddr);
-                        sock.send_to(&message.as_bytes(), format!("{}:{}", m, PORT)).await?;
+                        sock.send_to(&message.as_bytes(), format!("{}:{}", m, args.port)).await?;
                     },
                     Message::Ack(m) => {
                         debug!("Got ACK from {}. other_ip_rec is {:?}", m, other_ip_rec);
@@ -172,11 +178,11 @@ async fn listen_all_messages(
 
 
 
-async fn broadcast_task(sock: Arc<tokio::net::UdpSocket>, msg: Vec<u8>, cancel: CancellationToken, broadcast_interval: u64) -> io::Result<()> {
+async fn broadcast_task(sock: Arc<tokio::net::UdpSocket>, msg: Vec<u8>, cancel: CancellationToken, broadcast_interval: u64, args: Cli) -> io::Result<()> {
     loop {
         tokio::select! {
             _ = cancel.cancelled() => break,
-            _ = sock.send_to(&msg, format!("255.255.255.255:{}",PORT)) => {
+            _ = sock.send_to(&msg, format!("255.255.255.255:{}",args.port)) => {
                 trace!("Send a broadcast, now waiting for {}s", broadcast_interval);
                 sleep(Duration::from_secs(broadcast_interval)).await;
             }
@@ -197,7 +203,7 @@ async fn direct_comms_check_task(
     cancel: CancellationToken, 
     direct_working: Arc<AtomicBool>, direct_working_notify: Arc<Notify>,
     ipaddr: Ipv4Addr,
-    max_tries: u64
+    max_tries: u64, args: Cli
 ) -> io::Result<()> {
     println!("Test worked {} {}", ip_receiver.borrow().unwrap(), cancel.is_cancelled());
     let mut probe_interval = tokio::time::interval(Duration::from_secs(5));
@@ -230,7 +236,7 @@ async fn direct_comms_check_task(
                         _ => {},
                     }
                     trace!("Pinging");
-                    if let Err(e) = sock.send_to(format!("PING {}\n", ipaddr).as_bytes(), format!("{}:{}",ip,PORT)).await {
+                    if let Err(e) = sock.send_to(format!("PING {}\n", ipaddr).as_bytes(), format!("{}:{}",ip,args.port)).await {
                         warn!("Error sending with: {}", e)
                     };
                     timeout_counter += 1;
@@ -252,7 +258,7 @@ const STYLES: styling::Styles = styling::Styles::styled()
 
 
 
-#[derive(clap::Parser, Debug)]
+#[derive(clap::Parser, Debug, Clone)]
 #[command(styles = STYLES)]
 struct Cli {
     /// Interface IP to bind to (skips interactive picker)
@@ -260,7 +266,7 @@ struct Cli {
     interface: Option<Ipv4Addr>,
 
     /// UDP port to use
-    #[arg(short, long, default_value_t = 1337)]
+    #[arg(short, long, default_value_t = PORT)]
     port: u16,
 
     /// Shared room/pairing code
@@ -310,8 +316,6 @@ mmm        mmm   aaa        aaa     iiiiiiiiii     nnn      nnnnn
 #[tokio::main]
 async fn main() -> io::Result<()>{
     let args = Cli::parse();
-    println!("{:?}", args);
-
 
     tracing_subscriber::fmt()
         .with_max_level(match args.verbose {
@@ -341,7 +345,7 @@ async fn main() -> io::Result<()>{
 
 
 
-    let sock_listen: UdpSocket = UdpSocket::bind(format!("0.0.0.0:{}",PORT) as String).await?;
+    let sock_listen: UdpSocket = UdpSocket::bind(format!("0.0.0.0:{}",args.port) as String).await?;
     trace!("Started listening socket.");
 
     if let Err(e) = sock_listen.set_broadcast(true) {
@@ -371,24 +375,24 @@ async fn main() -> io::Result<()>{
     let direct_working_notify = Arc::new(Notify::new());
     
 
-    let shared_state: Arc<SharedState> = Arc::new(SharedState{finished: token.clone(), direct_working: direct_working.clone(), other_link_ip: tx});
+    let shared_state: Arc<SharedState> = Arc::new(SharedState{finished: token.clone(), other_link_ip: tx});
     trace!("Made everything into a shared state.");
 
-    let message = format!("{} {}\n", CODE, ipaddr);
+    let message = format!("{} {}\n", args.code, ipaddr);
     trace!(msg=message);
 
     let mut tasks = Vec::new();
-    let shared_state_clone = shared_state.clone();
     let token_clone = token.clone();
     let sock_sender_clone = sock_sender.clone();
-    tasks.push(tokio::spawn(async move {broadcast_task(sock_sender_clone, message.as_bytes().to_vec(), token_clone, args.broadcast_interval).await}));
+    let args_clone = args.clone();
+    tasks.push(tokio::spawn(async move {broadcast_task(sock_sender_clone, message.as_bytes().to_vec(), token_clone, args.broadcast_interval, args_clone).await}));
     trace!("Pushed the broadcast_task to tasks.");
 
-    let token_clone = token.clone();
     let shared_state_clone = shared_state.clone();
     let directly_working_clone = direct_working.clone();
     let direct_working_notify_clone = direct_working_notify.clone();
-    tasks.push(tokio::spawn(async move {listen_all_messages(sock_listen, shared_state_clone, ipaddr.clone(), directly_working_clone, direct_working_notify_clone).await}));
+    let args_clone = args.clone();
+    tasks.push(tokio::spawn(async move {listen_all_messages(sock_listen, shared_state_clone, ipaddr.clone(), directly_working_clone, direct_working_notify_clone, args_clone).await}));
     trace!("Pushed the listen_all_messages to tasks.");
     
 
@@ -433,7 +437,8 @@ async fn main() -> io::Result<()>{
     let other_link_ip_rx_clone: Receiver<Option<Ipv4Addr>> = rx.clone();
     
     let sock_sender_clone = sock_sender.clone();
-    tasks.push(tokio::spawn(async move {direct_comms_check_task(sock_sender_clone, other_link_ip_rx_clone, token_clone, direct_working, direct_working_notify, ipaddr, args.max_direct_tries).await}));
+    let args_clone = args.clone();
+    tasks.push(tokio::spawn(async move {direct_comms_check_task(sock_sender_clone, other_link_ip_rx_clone, token_clone, direct_working, direct_working_notify, ipaddr, args.max_direct_tries, args_clone).await}));
 
 
     for task in tasks {
