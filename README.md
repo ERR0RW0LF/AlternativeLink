@@ -42,12 +42,45 @@ Then click on Properties.
 Step 1.5:
 Switch to `Use the following IIP address:`
 
-> [!NOTE]
-> You will need to switch this back manually later when using your Ethernet.
+(You will need to switch this back manually later when using your Ethernet.)
 
 Step 1.6:
-Set the `IP address:` field to `17216.24.2` like in the image shown. Then set the `Subnet mask:` to `255.255.255.0`. And lastly set `Default gateway:` to `172.16.24.1`.
+Set the `IP address:` field to `172.16.24.2` like in the image shown. Then set the `Subnet mask:` to `255.255.255.0`. And lastly set `Default gateway:` to `172.16.24.1`.
 
 Now just click OK and OK again, then you should be set.
 </details>
+
+Step 2:
+Now plug the Shark Jack Display into the ethernet port of your PC.
+
+Step 3:
+Start SharkLink and AlternativeLink. For this if you set the ip address of your ethernet to `172.16.24.2` you can just run the exe using the terminal with
+
+Windows:
+```powershell
+./AlternativeLink.exe -i 172.16.24.2 
+```
+
+Linux:
+```bash
+./AlternativeLink -i 172.16.24.2
+```
+
+### Windows with WSL
+
+Get install wsl and for example ubuntu.
+
+To do so open a cmd or powershell with admin and run
+```powershell
+wsl --install
+```
+
+After that just use windows the ip address for the wsl network.
+To find this ip address you can use the `ipconfig.exe` command and then look for `Ethernet adapter vEthernet (WSL (Hyper-V firewall)):`
+It's probably `172.27.128.1`.
+
+If it's not showing up then you will first need to start wsl by using the `wsl` command.
+
+Then just start the program on windows with the found ip and on Linux using the eth0 interface probably the only option in the interactive selector.
+
 
