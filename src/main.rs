@@ -430,7 +430,7 @@ async fn main() -> io::Result<()>{
             }
 
         }).await {
-            warn!("Something whet wrong with the input for testing the direct connection: {}", e)
+            warn!("Something went wrong with the input for testing the direct connection: {}", e)
         }
     }
 
@@ -443,7 +443,7 @@ async fn main() -> io::Result<()>{
 
     for task in tasks {
         if let Err(e) =  task.await {
-            warn!("Something whet wrong whilst Joining a task: {}", e)
+            warn!("Something went wrong whilst Joining a task: {}", e)
         }
     }
     
