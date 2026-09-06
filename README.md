@@ -1,8 +1,6 @@
 # AlternativeLink
 Implementation of the SharkLink protocol for PC and other devices.
 
-Currently only a working python prototype.
-
 ## How to try it out
 
 ### One Shark Jack Display & One PC
@@ -83,4 +81,6 @@ If it's not showing up then you will first need to start wsl by using the `wsl` 
 
 Then just start the program on windows with the found ip and on Linux using the eth0 interface probably the only option in the interactive selector.
 
+## Python Prototype
 
+This is only for reference and not needed any more.
