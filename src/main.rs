@@ -205,7 +205,7 @@ async fn direct_comms_check_task(
     ipaddr: Ipv4Addr,
     max_tries: u64, args: Cli
 ) -> io::Result<()> {
-    println!("Test worked {} {}", ip_receiver.borrow().unwrap(), cancel.is_cancelled());
+    trace!("Test worked {} {}", ip_receiver.borrow().unwrap(), cancel.is_cancelled());
     let mut probe_interval = tokio::time::interval(Duration::from_secs(5));
     
     let mut timeout_counter: u64 = 0;
@@ -213,7 +213,7 @@ async fn direct_comms_check_task(
     loop {
         let is_working = direct_working.load(Ordering::Relaxed);
         if is_working {
-            println!("Connection Worked");
+            info!("Connection Worked");
             cancel.cancel();
             break;
         }
