@@ -1,6 +1,9 @@
 [package]
 name = "AlternativeLink"
-version = "0.1.0"
+version = "0.1.2"
+authors = ["ERR0RW0LF"]
+license-file = "LICENSE"
+description = "Rust implementation for SharkLink"
 edition = "2024"
 publish = false
 readme = "README.md"
