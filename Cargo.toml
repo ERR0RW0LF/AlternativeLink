@@ -6,9 +6,11 @@ license-file = "LICENSE"
 description = "Rust implementation for SharkLink"
 edition = "2024"
 publish = false
-readme = "README.md"
 repository = "https://github.com/ERR0RW0LF/AlternativeLink"
 
+[[bin]]
+name = "alternative-link"
+path = "src/main.rs"
 
 [profile.dev]
 debug = "line-tables-only"
