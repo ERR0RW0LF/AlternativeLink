@@ -255,11 +255,14 @@ const STYLES: styling::Styles = styling::Styles::styled()
     .literal(styling::AnsiColor::Blue.on_default().bold())
     .placeholder(styling::AnsiColor::Cyan.on_default());
 
-
+fn get_long_version() -> &'static str {
+    Box::leak(format!("{} by {}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS")).into_boxed_str())
+}
 
 
 #[derive(clap::Parser, Debug, Clone)]
 #[command(styles = STYLES)]
+#[command(version, author, about, long_version = get_long_version())]
 struct Cli {
     /// Interface IP to bind to (skips interactive picker)
     #[arg(short, long)]
