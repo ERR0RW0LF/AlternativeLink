@@ -216,6 +216,7 @@ struct SharedForSenders {
 
 
 async fn broadcast_task(shared_state: Arc<SharedForSenders>, msg: Vec<u8>, broadcast_interval: u64, args: Cli) -> io::Result<()> {
+    info!("Broadcasting every {}s", broadcast_interval);
     loop {
         tokio::select! {
             _ = shared_state.cancel.cancelled() => break,
@@ -285,11 +286,11 @@ async fn direct_comms_check_task(
                 let ip_opt = *ip_receiver.borrow();
                 if let Some(ip) = ip_opt {
                     match timeout_counter {
-                        i if timeout_counter > max_tries => { warn!("Didn't get a Ack in time, exhausted retries ({}/{}). Exiting.", i,  max_tries); exit(0)}
-                        i if timeout_counter > 0 => { warn!("Retrying {}/{}", i, max_tries) },
+                        i if timeout_counter > max_tries => { report_status(&args, &format!("Didn't get a Ack in time, exhausted retries ({}/{}). Exiting.", i,  max_tries),&[("retries", &i.to_string()),("max_retries", &max_tries.to_string())]); exit(0)}
+                        i if timeout_counter > 0 => { report_status(&args, &format!("Retrying {}/{}", i, max_tries),&[("retries", &i.to_string()),("max_retries", &max_tries.to_string())]) },
                         _ => {},
                     }
-                    trace!("Pinging");
+                    trace!("Sending Ping");
                     if let Err(e) = shared_state.sock.send_to(format!("PING {}\n", ipaddr).as_bytes(), format!("{}:{}",ip,args.port)).await {
                         warn!("Error sending with: {}", e)
                     };
@@ -410,7 +411,7 @@ async fn main() -> io::Result<()>{
 
 
     let sock_listen: UdpSocket = UdpSocket::bind(format!("0.0.0.0:{}",args.port) as String).await?;
-    trace!("Started listening socket.");
+    info!("Listening on port {}", args.port);
 
     if let Err(e) = sock_listen.set_broadcast(true) {
         warn!("Couldn't set listening socket broadcasting: {}", e)
@@ -449,6 +450,7 @@ async fn main() -> io::Result<()>{
 
     let message = format!("{} {}\n", args.code, ipaddr);
     trace!(msg=message);
+    info!("Using code {}", args.code);
 
     let mut tasks = Vec::new();
     let args_clone = args.clone();
@@ -469,7 +471,10 @@ async fn main() -> io::Result<()>{
     loop {
         if other_link_ip_rx_clone.changed().await.is_err() { break; }
         match *other_link_ip_rx_clone.borrow() {
-            Some(_) => {trace!("other_link_ip is now set. Going to the next step.");break;},
+            Some(ip) => {
+                report_status(&args, &format!("Found peer at {}", ip), &[("peer_ip",&ip.to_string())]);
+                break;
+            },
             None => {continue;}
         }
     }
