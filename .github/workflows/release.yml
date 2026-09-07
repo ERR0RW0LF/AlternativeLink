@@ -69,6 +69,6 @@ jobs:
       - name: Build and Upload Binary
         uses: taiki-e/upload-rust-binary-action@v1
         with:
-          bin: AlternativeLink
+          bin: alternative-link
           target: ${{ matrix.config.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
