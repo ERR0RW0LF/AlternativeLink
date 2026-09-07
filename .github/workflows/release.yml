@@ -64,7 +64,6 @@ jobs:
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: true
           targets: ${{ matrix.config.target }}
 
       - name: Build and Upload Binary
