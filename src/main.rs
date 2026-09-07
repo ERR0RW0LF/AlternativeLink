@@ -249,7 +249,16 @@ async fn direct_comms_check_task(
     loop {
         let is_working = direct_working.load(Ordering::Relaxed);
         if is_working {
-            info!("Connection Worked");
+            let ip= if let Some(ipa) = *ip_receiver.borrow() {
+                ipa
+            } else {
+                continue;
+            };
+            report_status(
+                &args, 
+                "Connection working", 
+                &[("peer_ip", &ip.to_string())],
+            );
             shared_state.cancel.cancel();
             break;
         }
@@ -258,7 +267,16 @@ async fn direct_comms_check_task(
             _ = shared_state.cancel.cancelled() => break,
             _ = direct_working_notify.notified() => {
                 if direct_working.load(Ordering::Relaxed) {
-                    info!("Connection Worked");
+                    let ip = if let Some(ipa) = *ip_receiver.borrow() {
+                        ipa
+                    } else {
+                        continue;
+                    };
+                    report_status(
+                        &args, 
+                        "Connection working", 
+                        &[("peer_ip", &ip.to_string())],
+                    );
                     shared_state.cancel.cancel();
                     break;
                 }
@@ -334,7 +352,17 @@ struct Cli {
 }
 
 
-
+fn report_status(args: &Cli, message: &str, json_fields: &[(&str, &str)]) {
+    if args.json {
+        let fields: Vec<String> = json_fields
+            .iter()
+            .map(|(k, v)| format!("\"{}\":\"{}\"", k, v))
+            .collect();
+        println!("{{\"status\":\"{}\",{}}}", message, fields.join(","));
+    } else {
+        println!("{}", message);
+    }
+}
 
 
 
