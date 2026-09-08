@@ -10,26 +10,12 @@ use tokio::net::UdpSocket;
 use tracing::{Level, info, trace, warn};
 
 use alternative_link_core::{ 
-    SharedForSenders, 
-    SharedState, 
-    discovery::{get_ipaddr, validate_interface}, 
-    engine::{EngineArgs, broadcast_task, direct_comms_check_task, listen_all_messages},
+    SharedForSenders, SharedState, discovery::{get_ipaddr, validate_interface}, engine::{EngineArgs, broadcast_task, direct_comms_check_task, listen_all_messages}, helper::report_status,
 };
 
 
 
 const PORT: u16 = 1337;
-
-
-
-
-
-
-
-
-
-
-
 
 const STYLES: styling::Styles = styling::Styles::styled()
     .header(styling::AnsiColor::Green.on_default().bold())
@@ -80,17 +66,7 @@ struct Cli {
 }
 
 
-fn report_status(args: &Cli, message: &str, json_fields: &[(&str, &str)]) {
-    if args.json {
-        let fields: Vec<String> = json_fields
-            .iter()
-            .map(|(k, v)| format!("\"{}\":\"{}\"", k, v))
-            .collect();
-        println!("{{\"status\":\"{}\",{}}}", message, fields.join(","));
-    } else {
-        println!("{}", message);
-    }
-}
+
 
 
 
@@ -208,7 +184,7 @@ async fn main() -> io::Result<()>{
         if other_link_ip_rx_clone.changed().await.is_err() { break; }
         match *other_link_ip_rx_clone.borrow() {
             Some(ip) => {
-                report_status(&args, &format!("Found peer at {}", ip), &[("peer_ip",&ip.to_string())]);
+                report_status(&engine_args, &format!("Found peer at {}", ip), &[("peer_ip",&ip.to_string())]);
                 break;
             },
             None => {continue;}
