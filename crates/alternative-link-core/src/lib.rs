@@ -6,7 +6,6 @@ use tokio_util::sync::CancellationToken;
 pub mod protocol;
 pub mod engine;
 pub mod discovery;
-mod cli;
 
 pub struct SharedState {
     pub finished: CancellationToken,

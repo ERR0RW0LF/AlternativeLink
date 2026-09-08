@@ -3,16 +3,28 @@ use std::{io, net::Ipv4Addr, process::exit, sync::{Arc, atomic::{AtomicBool, Ord
 use tokio::{sync::{Notify, watch}, time::sleep};
 use tracing::{debug, info, trace, warn};
 
-use crate::{SharedForSenders, SharedState, cli::Cli, protocol::{Code, Message}};
+use crate::{SharedForSenders, SharedState, protocol::{Code, Message}};
 
 const CODE: usize = 1337;
-const PORT: u16 = 1337;
+
+#[derive(Clone)]
+pub struct EngineArgs {
+    pub code: String,
+    pub port: u16,
+    pub json: bool,
+}
+
+
+
+
+
+
 
 pub async fn listen_all_messages(
     sock: tokio::net::UdpSocket, shared_state: Arc<SharedState>, 
     own_ipaddr: Ipv4Addr, 
     direct_working: Arc<AtomicBool>, direct_working_notify: Arc<Notify>,
-    args: Cli,
+    args: EngineArgs,
 ) -> io::Result<()> {
     let mut other_ip_rec: Option<Ipv4Addr> = None;
     
@@ -81,7 +93,7 @@ pub async fn listen_all_messages(
 }
 
 
-pub async fn broadcast_task(shared_state: Arc<SharedForSenders>, msg: Vec<u8>, broadcast_interval: u64, args: Cli) -> io::Result<()> {
+pub async fn broadcast_task(shared_state: Arc<SharedForSenders>, msg: Vec<u8>, broadcast_interval: u64, args: EngineArgs) -> io::Result<()> {
     info!("Broadcasting every {}s", broadcast_interval);
     loop {
         tokio::select! {
@@ -95,7 +107,7 @@ pub async fn broadcast_task(shared_state: Arc<SharedForSenders>, msg: Vec<u8>, b
     Ok(())
 }
 
-fn report_status(args: &Cli, message: &str, json_fields: &[(&str, &str)]) {
+fn report_status(args: &EngineArgs, message: &str, json_fields: &[(&str, &str)]) {
     if args.json {
         let fields: Vec<String> = json_fields
             .iter()
@@ -111,7 +123,7 @@ pub async fn direct_comms_check_task(
     shared_state: Arc<SharedForSenders>, ip_receiver: watch::Receiver<Option<Ipv4Addr>>, 
     direct_working: Arc<AtomicBool>, direct_working_notify: Arc<Notify>,
     ipaddr: Ipv4Addr,
-    max_tries: u64, args: Cli
+    max_tries: u64, args: EngineArgs
 ) -> io::Result<()> {
     trace!("Test worked {} {}", ip_receiver.borrow().unwrap(), shared_state.cancel.is_cancelled());
     let mut probe_interval = tokio::time::interval(Duration::from_secs(5));
