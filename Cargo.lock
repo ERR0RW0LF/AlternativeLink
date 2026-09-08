@@ -28,12 +28,10 @@ dependencies = [
 name = "alternative-link-core"
 version = "0.1.3"
 dependencies = [
- "clap",
  "if-addrs",
  "tokio",
  "tokio-util",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
