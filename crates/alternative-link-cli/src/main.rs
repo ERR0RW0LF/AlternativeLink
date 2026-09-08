@@ -1,23 +1,23 @@
 use std::{
     io::{self, Write, stdout}, 
     net::Ipv4Addr, 
-    process::exit, 
-    sync::{Arc, atomic::{AtomicBool, Ordering}}, 
-    time::Duration
+    sync::{Arc, atomic::AtomicBool}, 
 };
 use clap::{Parser, builder::styling};
-use tokio::{sync::{Notify, watch::{self, Receiver}}, time::sleep};
+use tokio::{sync::{Notify, watch::{self, Receiver}},};
 use tokio_util::sync::CancellationToken;
 use tokio::net::UdpSocket;
-use tracing::{Level, debug, info, trace, warn};
+use tracing::{Level, info, trace, warn};
 
 use alternative_link_core::{ 
-    SharedForSenders, SharedState, discovery::{ get_ipaddr, validate_interface }, engine::{broadcast_task, direct_comms_check_task, listen_all_messages}, protocol::{ Code, Message }
+    SharedForSenders, 
+    SharedState, 
+    discovery::{get_ipaddr, validate_interface}, 
+    engine::{EngineArgs, broadcast_task, direct_comms_check_task, listen_all_messages},
 };
 
 
 
-const CODE: usize = 1337;
 const PORT: u16 = 1337;
 
 
@@ -135,6 +135,13 @@ async fn main() -> io::Result<()>{
 
     trace!(own_ip = ipaddr.to_string());
 
+    let engine_args: EngineArgs = EngineArgs {
+        code: args.code.clone(),
+        port: args.port,
+        json: args.json
+    };
+    trace!("Build the EngineArgs from the Cli struct");
+
 
 
     let sock_listen: UdpSocket = UdpSocket::bind(format!("0.0.0.0:{}",args.port) as String).await?;
@@ -180,17 +187,19 @@ async fn main() -> io::Result<()>{
     info!("Using code {}", args.code);
 
     let mut tasks = Vec::new();
-    let args_clone = args.clone();
+    let engine_args_clone = engine_args.clone();
     let shared_for_senders_clone: Arc<SharedForSenders> = shared_for_senders.clone();
 
-    tasks.push(tokio::spawn(async move {broadcast_task(shared_for_senders_clone, message.as_bytes().to_vec(), args.broadcast_interval, args_clone).await}));
+
+
+    tasks.push(tokio::spawn(async move {broadcast_task(shared_for_senders_clone, message.as_bytes().to_vec(), args.broadcast_interval, engine_args_clone).await}));
     trace!("Pushed the broadcast_task to tasks.");
 
     let shared_state_clone = shared_state.clone();
     let directly_working_clone = direct_working.clone();
     let direct_working_notify_clone = direct_working_notify.clone();
-    let args_clone = args.clone();
-    tasks.push(tokio::spawn(async move {listen_all_messages(sock_listen, shared_state_clone, ipaddr, directly_working_clone, direct_working_notify_clone, args_clone).await}));
+    let engine_args_clone = engine_args.clone();
+    tasks.push(tokio::spawn(async move {listen_all_messages(sock_listen, shared_state_clone, ipaddr, directly_working_clone, direct_working_notify_clone, engine_args_clone).await}));
     trace!("Pushed the listen_all_messages to tasks.");
     
 
@@ -235,8 +244,7 @@ async fn main() -> io::Result<()>{
     }
 
     let other_link_ip_rx_clone: Receiver<Option<Ipv4Addr>> = rx.clone();
-    let args_clone = args.clone();
-    tasks.push(tokio::spawn(async move {direct_comms_check_task(shared_for_senders, other_link_ip_rx_clone, direct_working, direct_working_notify, ipaddr, args.max_direct_tries, args_clone).await}));
+    tasks.push(tokio::spawn(async move {direct_comms_check_task(shared_for_senders, other_link_ip_rx_clone, direct_working, direct_working_notify, ipaddr, args.max_direct_tries, engine_args).await}));
 
 
     for task in tasks {
