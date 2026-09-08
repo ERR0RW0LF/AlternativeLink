@@ -1,0 +1,25 @@
+[package]
+name = "alternative-link-cli"
+version.workspace = true
+authors.workspace = true
+license-file.workspace = true
+description.workspace = true
+edition.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+
+[[bin]]
+name = "alternative-link-cli"
+path = "src/main.rs"
+
+
+
+[dependencies]
+tokio.workspace = true
+if-addrs.workspace = true
+tokio-util.workspace = true
+tracing-subscriber.workspace = true
+tracing.workspace = true
+clap.workspace = true
+alternative-link-core.workspace = true
