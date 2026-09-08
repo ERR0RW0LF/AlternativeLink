@@ -3,7 +3,7 @@ use std::{io, net::Ipv4Addr, process::exit, sync::{Arc, atomic::{AtomicBool, Ord
 use tokio::{sync::{Notify, watch}, time::sleep};
 use tracing::{debug, info, trace, warn};
 
-use crate::{SharedForSenders, SharedState, protocol::{Code, Message}};
+use crate::{SharedForSenders, SharedState, helper::report_status, protocol::{Code, Message}};
 
 const CODE: usize = 1337;
 
@@ -107,17 +107,7 @@ pub async fn broadcast_task(shared_state: Arc<SharedForSenders>, msg: Vec<u8>, b
     Ok(())
 }
 
-fn report_status(args: &EngineArgs, message: &str, json_fields: &[(&str, &str)]) {
-    if args.json {
-        let fields: Vec<String> = json_fields
-            .iter()
-            .map(|(k, v)| format!("\"{}\":\"{}\"", k, v))
-            .collect();
-        println!("{{\"status\":\"{}\",{}}}", message, fields.join(","));
-    } else {
-        println!("{}", message);
-    }
-}
+
 
 pub async fn direct_comms_check_task(
     shared_state: Arc<SharedForSenders>, ip_receiver: watch::Receiver<Option<Ipv4Addr>>, 
