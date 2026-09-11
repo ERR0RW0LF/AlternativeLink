@@ -8,7 +8,7 @@ use tokio::net::UdpSocket;
 use tracing::{Level, error, info, trace, warn};
 
 use alternative_link_core::{ 
-    SharedForSenders, SharedState, discovery::{get_ipaddr, validate_interface}, engine::{EngineArgs, broadcast_task, direct_comms_check_task, listen_all_messages}, helper::report_status,
+    SharedForSenders, SharedState, discovery::{validate_interface}, engine::{EngineArgs, broadcast_task, direct_comms_check_task, listen_all_messages}, helper::report_status,
 };
 
 
@@ -32,7 +32,7 @@ fn get_long_version() -> &'static str {
 struct Cli {
     /// Interface IP to bind to (skips interactive picker)
     #[arg(short, long)]
-    interface: Option<Ipv4Addr>,
+    interface: Ipv4Addr,
 
     /// UDP port to use
     #[arg(short, long, default_value_t = PORT)]
@@ -96,36 +96,18 @@ async fn main() -> io::Result<()>{
         })
         .init();
 
-    let ipaddr = match args.interface {
-        Some(ipaddr) => {
-            match validate_interface(ipaddr) {
-                Ok(b) => {
-                    if b {
-                        ipaddr
-                    } else {
-                        error!("{} isn't a valid ip addr for this device", ipaddr);
-                        exit(0)
-                    }
-                },
-                Err(e ) => {
-                    error!("{}", e);
-                    exit(1)
-                }
+    let ipaddr = match validate_interface(args.interface) {
+        Ok(b) => {
+            if b {
+                args.interface
+            } else {
+                error!("{} isn't a valid interface choice.", args.interface);
+                exit(1)
             }
         },
-        _ => {
-            match get_ipaddr() {
-                Ok(i) => {
-                    match i {
-                        Some(ip) => ip,
-                        None => {error!("couldn't get a valid ip for sending"); exit(0)}
-                    }
-                },
-                Err(e) => {
-                    error!("{}", e);
-                    exit(1)
-                }
-            }
+        Err(e) => {
+            error!("{}", e);
+            exit(1)
         }
     };
 
