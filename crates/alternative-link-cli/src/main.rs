@@ -1,13 +1,11 @@
 use std::{
-    io::{self, Write, stdout}, 
-    net::Ipv4Addr, 
-    sync::{Arc, atomic::AtomicBool}, 
+    io::{self, Write, stdout}, net::Ipv4Addr, process::exit, sync::{Arc, atomic::AtomicBool}, 
 };
 use clap::{Parser, builder::styling};
 use tokio::{sync::{Notify, watch::{self, Receiver}},};
 use tokio_util::sync::CancellationToken;
 use tokio::net::UdpSocket;
-use tracing::{Level, info, trace, warn};
+use tracing::{Level, error, info, trace, warn};
 
 use alternative_link_core::{ 
     SharedForSenders, SharedState, discovery::{get_ipaddr, validate_interface}, engine::{EngineArgs, broadcast_task, direct_comms_check_task, listen_all_messages}, helper::report_status,
@@ -99,12 +97,35 @@ async fn main() -> io::Result<()>{
         .init();
 
     let ipaddr = match args.interface {
-        Some(ipaddr)
-            if validate_interface(ipaddr) => {
-                ipaddr
-            },
+        Some(ipaddr) => {
+            match validate_interface(ipaddr) {
+                Ok(b) => {
+                    if b {
+                        ipaddr
+                    } else {
+                        error!("{} isn't a valid ip addr for this device", ipaddr);
+                        exit(0)
+                    }
+                },
+                Err(e ) => {
+                    error!("{}", e);
+                    exit(1)
+                }
+            }
+        },
         _ => {
-            get_ipaddr().unwrap()
+            match get_ipaddr() {
+                Ok(i) => {
+                    match i {
+                        Some(ip) => ip,
+                        None => {error!("couldn't get a valid ip for sending"); exit(0)}
+                    }
+                },
+                Err(e) => {
+                    error!("{}", e);
+                    exit(1)
+                }
+            }
         }
     };
 
