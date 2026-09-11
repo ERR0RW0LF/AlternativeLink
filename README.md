@@ -81,6 +81,20 @@ If it's not showing up then you will first need to start wsl by using the `wsl` 
 
 Then just start the program on windows with the found ip and on Linux using the eth0 interface probably the only option in the interactive selector.
 
+## SharkLink Protocol
+
+SharkLinks underlying protocol uses UDP as it's transport protocol this is due to it needing broadcasting and only using small independent packages.
+
+There are three types of messages
+
+| Type | Usage | Structure | Example |
+| :--- | :---- | :-------- | :------ |
+| Discovery | Used to discover the other device. <br>This uses the broadcasting ip dest. | `<code> <own_ip>` | `1-3-3-7 172.16.24.1` |
+| Ping | Used to confirm the direct connection. <br>Used by the device requesting the test. | `PING <own_ip>` | `PING 172.16.24.1` |
+| Acknowledge | Used to confirm a Ping message. | `ACK <own_ip>` | `ACK 172.16.24.1` |
+
+
+
 ## Python Prototype
 
 This is only for reference and not needed any more.
