@@ -56,12 +56,12 @@ Start SharkLink and AlternativeLink. For this if you set the ip address of your 
 
 Windows:
 ```powershell
-./AlternativeLink.exe -i 172.16.24.2 
+./alternative-link-cli -i 172.16.24.2 
 ```
 
 Linux:
 ```bash
-./AlternativeLink -i 172.16.24.2
+./alternative-link-cli -i 172.16.24.2
 ```
 
 ### Windows with WSL
@@ -79,7 +79,24 @@ It's probably `172.27.128.1`.
 
 If it's not showing up then you will first need to start wsl by using the `wsl` command.
 
-Then just start the program on windows with the found ip and on Linux using the eth0 interface probably the only option in the interactive selector.
+Then just start the program on windows with the found ip using the -i option like this
+
+```powershell
+./alternative-link-cli -i <wsl_ip>
+```
+
+And do the same on in wsl but using it's ip.
+The ip can be found using
+
+```bash
+ifconfig
+```
+
+and then run
+
+```bash
+./alternative-link-cli -i <ip>
+```
 
 ## SharkLink Protocol
 
