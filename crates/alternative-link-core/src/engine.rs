@@ -104,7 +104,7 @@ pub async fn listen_all_messages(
 
 pub async fn broadcast_task(shared_state: Arc<SharedForSenders>, msg: Vec<u8>, broadcast_interval: u64, args: EngineArgs) -> io::Result<()> {
     info!("Broadcasting every {}s", broadcast_interval);
-    let mut probe_interval = tokio::time::interval(Duration::from_secs(5));
+    let mut probe_interval = tokio::time::interval(Duration::from_secs(broadcast_interval));
     loop {
         tokio::select! {
             _ = shared_state.cancel.cancelled() => break,
