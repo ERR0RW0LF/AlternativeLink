@@ -1,5 +1,18 @@
 # AlternativeLink
+
+[![.github/workflows/release.yml](https://github.com/ERR0RW0LF/AlternativeLink/actions/workflows/release.yml/badge.svg)](https://github.com/ERR0RW0LF/AlternativeLink/actions/workflows/release.yml)
+
 Implementation of the SharkLink protocol for PC and other devices.
+
+## Project Status
+
+- [x] python prototype
+- [x] usable CLI
+- [x] core lib
+- [ ] interactive tool <- Currently in development
+- [ ] usable tui
+- [ ] alternative improved protocol
+- [ ] bash port for the shark jack display of the alternative
 
 ## How to try it out
 
