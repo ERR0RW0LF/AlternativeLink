@@ -1,6 +1,6 @@
 use std::{io, net::Ipv4Addr, process::exit, sync::{Arc, atomic::{AtomicBool, Ordering}}, time::Duration};
 
-use tokio::{sync::{Notify, watch}, time::sleep};
+use tokio::sync::{Notify, watch};
 use tracing::{debug, info, trace, warn};
 
 use crate::{SharedForSenders, SharedState, helper::report_status, protocol::{Code, Message}};
@@ -104,13 +104,14 @@ pub async fn listen_all_messages(
 
 pub async fn broadcast_task(shared_state: Arc<SharedForSenders>, msg: Vec<u8>, broadcast_interval: u64, args: EngineArgs) -> io::Result<()> {
     info!("Broadcasting every {}s", broadcast_interval);
+    let mut probe_interval = tokio::time::interval(Duration::from_secs(5));
     loop {
         tokio::select! {
             _ = shared_state.cancel.cancelled() => break,
-            _ = shared_state.sock.send_to(&msg, format!("255.255.255.255:{}",args.port)) => {
+            _ = probe_interval.tick() => {
+                let _ = shared_state.sock.send_to(&msg, format!("255.255.255.255:{}",args.port)).await;
                 trace!("Send a broadcast, now waiting for {}s", broadcast_interval);
-                sleep(Duration::from_secs(broadcast_interval)).await;
-            }
+            },
         }
     }
     Ok(())
