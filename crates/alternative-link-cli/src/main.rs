@@ -1,14 +1,18 @@
 use std::{
-    io::{self, Write, stdout}, net::Ipv4Addr, process::exit, sync::{Arc, atomic::AtomicBool}, 
+    io, net::Ipv4Addr, process::exit, sync::{Arc, atomic::AtomicBool}, time::Duration, 
 };
 use clap::{Parser, builder::styling};
-use tokio::{sync::{Notify, watch::{self, Receiver}},};
+use tokio::{sync::{Notify, watch::{self, Receiver}}, time::sleep,};
 use tokio_util::sync::CancellationToken;
 use tokio::net::UdpSocket;
 use tracing::{Level, error, info, trace, warn};
 
 use alternative_link_core::{ 
-    SharedForSenders, SharedState, discovery::{validate_interface}, engine::{EngineArgs, broadcast_task, direct_comms_check_task, listen_all_messages}, helper::report_status,
+    SharedForSenders, 
+    SharedState, 
+    discovery::{validate_interface}, 
+    engine::{EngineArgs, broadcast_task, direct_comms_check_task, listen_all_messages}, 
+    helper::report_status,
 };
 
 
@@ -46,9 +50,13 @@ struct Cli {
     #[arg(long, default_value_t = 5)]
     broadcast_interval: u64,
 
-    /// Run non-interactively: auto-test connection as soon as a peer is found
+    /// Run non-interactively: auto-test connection as soon as a peer is found. If this is not set after receiving a Ping and sending the Ack the program closes
     #[arg(long)]
     auto_test: bool,
+
+    /// Prevents the program from automatically stopping (you will need to manually kill the program if this is set)
+    #[arg(long)]
+    no_stop: bool,
 
     /// Increase log verbosity (-v -vv)
     #[arg(short, action = clap::ArgAction::Count)]
@@ -117,7 +125,9 @@ async fn main() -> io::Result<()>{
     let engine_args: EngineArgs = EngineArgs {
         code: args.code.clone(),
         port: args.port,
-        json: args.json
+        json: args.json,
+        auto_test: args.auto_test,
+        no_stop: args.no_stop,
     };
     trace!("Build the EngineArgs from the Cli struct");
 
@@ -187,44 +197,24 @@ async fn main() -> io::Result<()>{
         if other_link_ip_rx_clone.changed().await.is_err() { break; }
         match *other_link_ip_rx_clone.borrow() {
             Some(ip) => {
-                report_status(&engine_args, &format!("Found peer at {}", ip), &[("peer_ip",&ip.to_string())]);
+                report_status(&engine_args, &format!("Found peer at {}", ip), &[("state","peer ip found"),("peer_ip",&ip.to_string())]);
                 break;
             },
             None => {continue;}
         }
     }
 
-    let other_link_ip_rx_clone: Receiver<Option<Ipv4Addr>> = rx.clone();
-    if !args.auto_test
-        && let Err(e) = tokio::task::spawn_blocking(move || {
-            use std::io::stdin;
-            loop {
-                let mut buffer = String::new();
-                let other_ip = other_link_ip_rx_clone.borrow().unwrap();
-                println!("1: Quit\n2: Test Connection to {}", other_ip);
-                let stdin = stdin();
-                print!("Please chose the option to use (num): ");
-                if let Err(e) = stdout().flush() {
-                    warn!("Problem whilst flushing stdout: {}", e)
-                }
-                stdin.read_line(&mut buffer).expect("Reading your input didn't work");
-                let choice: usize = buffer.trim().parse::<usize>().unwrap_or(0);
-
-                match choice {
-                    1 => {token.cancel();break;},
-                    2 => {break;},
-                    _ => {},
-                }
-            }
-
-        }).await {
-            warn!("Something went wrong with the input for testing the direct connection: {}", e)
-        
+    if args.auto_test {
+        let other_link_ip_rx_clone: Receiver<Option<Ipv4Addr>> = rx.clone();
+        let engine_args_clone = engine_args.clone();
+        tasks.push(tokio::spawn(async move {direct_comms_check_task(shared_for_senders, other_link_ip_rx_clone, direct_working, direct_working_notify, ipaddr, args.max_direct_tries, engine_args_clone).await}));
     }
 
-    let other_link_ip_rx_clone: Receiver<Option<Ipv4Addr>> = rx.clone();
-    tasks.push(tokio::spawn(async move {direct_comms_check_task(shared_for_senders, other_link_ip_rx_clone, direct_working, direct_working_notify, ipaddr, args.max_direct_tries, engine_args).await}));
-
+    if args.no_stop {
+        loop{
+            sleep(Duration::from_mins(1)).await;
+        }
+    }
 
     for task in tasks {
         if let Err(e) =  task.await {
@@ -232,17 +222,14 @@ async fn main() -> io::Result<()>{
         }
     }
     
+    report_status(
+        &engine_args,
+        "Finished Execution",
+        &[
+            ("state","shutdown"),
+            ("peer_ip", &format!("{}",other_link_ip_rx_clone.borrow().unwrap_or(Ipv4Addr::new(127,0,0,1))))
+        ]
+    );
 
     Ok(())
 }
-
-
-// ==========================================  ========================================== \\
-// ==========================================  ========================================== \\
-// ==========================================  ========================================== \\
-// ==========================================  ========================================== \\
-
-
-
-
-

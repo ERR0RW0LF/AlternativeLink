@@ -12,6 +12,8 @@ pub struct EngineArgs {
     pub code: String,
     pub port: u16,
     pub json: bool,
+    pub auto_test: bool,
+    pub no_stop: bool,
 }
 
 
@@ -35,6 +37,9 @@ pub async fn listen_all_messages(
         Code {code_uint: CODE}
     };
     loop {
+        if shared_state.finished.is_cancelled() {
+            break;
+        }
         tokio::select! {
             _ = shared_state.finished.cancelled() => break,
             t = sock.recv_from(&mut buf) => {
@@ -76,6 +81,10 @@ pub async fn listen_all_messages(
                         debug!("Got PING");
                         let message = format!("ACK {}\n", own_ipaddr);
                         sock.send_to(message.as_bytes(), format!("{}:{}", m, args.port)).await?;
+                        if !args.auto_test && !args.no_stop {
+                            trace!("stopping everything");
+                            shared_state.finished.cancel();
+                        }
                     },
                     Message::Ack(m) => {
                         debug!("Got ACK from {}. other_ip_rec is {:?}", m, other_ip_rec);
@@ -131,7 +140,7 @@ pub async fn direct_comms_check_task(
             report_status(
                 &args, 
                 "Connection working", 
-                &[("peer_ip", &ip.to_string())],
+                &[("state","direct connection confirmed"),("peer_ip", &ip.to_string())],
             );
             shared_state.cancel.cancel();
             break;
@@ -149,7 +158,7 @@ pub async fn direct_comms_check_task(
                     report_status(
                         &args, 
                         "Connection working", 
-                        &[("peer_ip", &ip.to_string())],
+                        &[("state","direct connection confirmed"),("peer_ip", &ip.to_string())],
                     );
                     shared_state.cancel.cancel();
                     break;
@@ -163,7 +172,7 @@ pub async fn direct_comms_check_task(
                             report_status(
                                 &args, 
                                 &format!("Didn't get a Ack in time, exhausted retries ({}/{}). Exiting.", i,  max_tries),
-                                &[("retries", &i.to_string()),("max_retries", &max_tries.to_string())]
+                                &[("state","timeout"),("retries", &i.to_string()),("max_retries", &max_tries.to_string())]
                             ); 
                             exit(0)
                         }
@@ -171,7 +180,7 @@ pub async fn direct_comms_check_task(
                             report_status(
                                 &args, 
                                 &format!("Retrying {}/{}", i, max_tries),
-                                &[("retries", &i.to_string()),("max_retries", &max_tries.to_string())]
+                                &[("state","retrying direct communication"),("retries", &i.to_string()),("max_retries", &max_tries.to_string())]
                             ) 
                         },
                         _ => {},
