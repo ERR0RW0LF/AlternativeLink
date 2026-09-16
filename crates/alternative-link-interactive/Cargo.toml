@@ -1,0 +1,11 @@
+[package]
+name = "alternative-link-interactive"
+version.workspace = true
+authors.workspace = true
+license-file.workspace = true
+description.workspace = true
+edition.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[dependencies]
