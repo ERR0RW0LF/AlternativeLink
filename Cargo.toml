@@ -3,7 +3,7 @@ members = ["crates/*"]
 resolver = "3"
 
 [workspace.package]
-version = "0.1.5"
+version = "0.1.6"
 authors = ["ERR0RW0LF"]
 license-file = "LICENSE"
 description = "Rust implementation for SharkLink"
