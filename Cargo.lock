@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "alternative-link-cli"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "alternative-link-core",
  "clap",
@@ -26,7 +26,7 @@ dependencies = [
 
 [[package]]
 name = "alternative-link-core"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "if-addrs",
  "tokio",
@@ -36,7 +36,7 @@ dependencies = [
 
 [[package]]
 name = "alternative-link-interactive"
-version = "0.1.5"
+version = "0.1.6"
 
 [[package]]
 name = "anstream"
