@@ -2,7 +2,7 @@ use std::{
     io, net::Ipv4Addr, process::exit, sync::{Arc, atomic::AtomicBool}, time::Duration, 
 };
 use clap::{Parser, builder::styling};
-use tokio::{sync::{Notify, watch::{self, Receiver}}, time::sleep,};
+use tokio::{select, sync::{Notify, watch::{self, Receiver}}, time::sleep,};
 use tokio_util::sync::CancellationToken;
 use tokio::net::UdpSocket;
 use tracing::{Level, error, info, trace, warn};
@@ -191,20 +191,27 @@ async fn main() -> io::Result<()>{
     tasks.push(tokio::spawn(async move {listen_all_messages(sock_listen, shared_state_clone, ipaddr, directly_working_clone, direct_working_notify_clone, engine_args_clone).await}));
     trace!("Pushed the listen_all_messages to tasks.");
     
+    
 
     let mut other_link_ip_rx_clone: Receiver<Option<Ipv4Addr>> = rx.clone();
     loop {
-        if other_link_ip_rx_clone.changed().await.is_err() { break; }
-        match *other_link_ip_rx_clone.borrow() {
-            Some(ip) => {
-                report_status(&engine_args, &format!("Found peer at {}", ip), &[("state","peer ip found"),("peer_ip",&ip.to_string())]);
-                break;
+        select! {
+            i = other_link_ip_rx_clone.changed() => {
+                if i.is_err() { break; }
+                
+                match *other_link_ip_rx_clone.borrow() {
+                    Some(ip) => {
+                        report_status(&engine_args, &format!("Found peer at {}", ip), &[("state","peer ip found"),("peer_ip",&ip.to_string())]);
+                        break;
+                    },
+                    None => {continue;}
+                }
             },
-            None => {continue;}
+            _ = token.cancelled() => break,
         }
     }
 
-    if args.auto_test {
+    if args.auto_test && !token.is_cancelled() {
         let other_link_ip_rx_clone: Receiver<Option<Ipv4Addr>> = rx.clone();
         let engine_args_clone = engine_args.clone();
         tasks.push(tokio::spawn(async move {direct_comms_check_task(shared_for_senders, other_link_ip_rx_clone, direct_working, direct_working_notify, ipaddr, args.max_direct_tries, engine_args_clone).await}));
