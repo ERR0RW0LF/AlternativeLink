@@ -1,6 +1,6 @@
 # AlternativeLink
 
-[![.github/workflows/release.yml](https://github.com/ERR0RW0LF/AlternativeLink/actions/workflows/release.yml/badge.svg)](https://github.com/ERR0RW0LF/AlternativeLink/actions/workflows/release.yml)
+[![.github/workflows/release.yml](https://github.com/ERR0RW0LF/AlternativeLink/actions/workflows/release.yml/badge.svg)](https://github.com/ERR0RW0LF/AlternativeLink/actions/workflows/release.yml) [![Audit Dependencies](https://github.com/ERR0RW0LF/AlternativeLink/actions/workflows/audit-dependencies.yml/badge.svg)](https://github.com/ERR0RW0LF/AlternativeLink/actions/workflows/audit-dependencies.yml)
 
 Implementation of the SharkLink protocol for PC and other devices.
 
