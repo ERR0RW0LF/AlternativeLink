@@ -111,6 +111,18 @@ and then run
 ./alternative-link-cli -i <ip>
 ```
 
+## Building
+
+You only need to install rustup from here: https://rust-lang.org/tools/install/
+
+Then just clone or download the repo and then cd into it.
+
+Now just run:
+
+```bash
+cargo build --release
+```
+
 ## SharkLink Protocol
 
 SharkLinks underlying protocol uses UDP as it's transport protocol this is due to it needing broadcasting and only using small independent packages.
