@@ -1,9 +1,8 @@
-use std::{io::{Write, stdin, stdout}, net::Ipv4Addr};
+use std::net::Ipv4Addr;
 
 use if_addrs::IfAddr;
-use tracing::warn;
 
-use crate::errors::DiscoveryError;
+use crate::{errors::DiscoveryError, prompts};
 
 
 fn get_ip_addresses() -> Result<Vec<Ipv4Addr>, DiscoveryError> {
@@ -33,22 +32,20 @@ pub fn validate_interface(ipaddr: Ipv4Addr) -> Result<bool, DiscoveryError>{
     Ok(possible_ips.contains(&ipaddr))
 }
 
-
+/// Prints a numbered list of all the ip4vs then asks the user to chose the one to be used
 pub fn get_ipaddr() -> Result<Option<Ipv4Addr>, DiscoveryError> {
     let possible_ips: Vec<Ipv4Addr> = get_ip_addresses()?;
-    for (i, item) in possible_ips.iter().enumerate() {
-        println!("- {number:0>2}: {}",item, number=i)
+
+    let possible_ips_string: Vec<String> = possible_ips.iter()
+        .map(|ip| ip.to_string())
+        .collect();
+
+    let answers: Vec<&str> = possible_ips_string.iter()
+        .map(|s| s.as_str())
+        .collect();
+    
+    match prompts::list_prompt("What ip should be used?", answers, None) {
+        Some(choice_index) => {Ok(possible_ips.get(choice_index).copied())},
+        None => {Err(DiscoveryError::ChoiceError { os_error: "nope".to_string() })},
     }
-    let mut buffer = String::new();
-    let stdin = stdin();
-    print!("Please chose the ip to use (num): ");
-    if let Err(e) = stdout().flush() {
-        warn!("Problem whilst flushing stdout: {}", e)
-    }
-    if let Err(e) = stdin.read_line(&mut buffer) {return Err(DiscoveryError::StdInRead { os_error: e.to_string() });}
-    let choice: usize = match buffer.trim().parse::<usize>() {
-        Ok(i) => i,
-        Err(e) => {return Err(DiscoveryError::InputParsing { os_error: e.to_string() })},
-    };
-    Ok(possible_ips.get(choice).copied())
 }

@@ -92,6 +92,12 @@ pub struct Code {
     pub code_uint: usize
 }
 
+impl Code {
+    pub fn new(code: usize) -> Code {
+        Code { code_uint: code }
+    }
+}
+
 impl TryFrom<&str> for Code {
     type Error = &'static str;
 

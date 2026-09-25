@@ -1,7 +1,6 @@
 use std::io::{Write, stdin, stdout};
 
-
-pub fn yes_no_prompt(question_text: &str, default: Option<bool>) -> Option<bool>{
+pub fn yes_no_prompt(question_text: &str, default: Option<bool>) -> Option<bool> {
     
     println!("{}", question_text);
 
@@ -27,27 +26,15 @@ pub fn yes_no_prompt(question_text: &str, default: Option<bool>) -> Option<bool>
 
     if let Err(e) = stdin.read_line(&mut buffer) {eprintln!("{}", e); return None};
     match buffer.trim().to_lowercase().as_str() {
-        "y" | "yes" => {
-            Some(true)
-        },
-        "n" | "no" => {
-            Some(false)
-        },
-        _ if default == Some(true) => {
-            Some(true)
-        },
-        _ if default == Some(false) => {
-            Some(false)
-        },
-        _ => {
-            None
-        }
+        "y" | "yes" => Some(true),
+        "n" | "no" => Some(false),
+        _ => default,
     }
 }
 
-pub fn _list_prompt(question_text: &str, answers: Vec<&str>, default: Option<usize>) -> Option<usize> {
+pub fn list_prompt(question_text: &str, answers: Vec<&str>, default: Option<usize>) -> Option<usize> {
     for (i, text) in answers.iter().enumerate() {
-        println!("- {i:0>3}: {}", text);
+        println!("- {i:02}: {}", text);
     }
     println!("{}", question_text);
     print!("Number of your choice: ");
@@ -58,12 +45,29 @@ pub fn _list_prompt(question_text: &str, answers: Vec<&str>, default: Option<usi
     }
     if let Err(e) = stdin.read_line(&mut buffer) {eprintln!("{}", e); return None};
     match buffer.trim().parse::<usize>() {
-        Ok(i) => {Some(i)},
-        Err(_e) => {
-            if let Some(i) = default {
-                return Some(i);
-            }
-            None
-        }
+        Ok(i) => Some(i),
+        Err(_e) => default
     }
-} 
+}
+
+pub fn number_prompt(question_text: &str, default: Option<isize>) -> Option<isize> {
+    print!("{}", question_text);
+    if let Some(i) = default {
+        println!(" (default: {})", i);
+    } else {
+        println!();
+    }
+
+    print!("Input a number: ");
+    let mut buffer = String::new();
+    let stdin = stdin();
+    if let Err(e) = stdout().flush() {
+        eprintln!("{}", e);
+    }
+    if let Err(e) = stdin.read_line(&mut buffer) {eprintln!("{}", e); return None};
+
+    match buffer.trim().parse::<isize>() {
+        Ok(i) => Some(i),
+        Err(_e) => default
+    }
+}
