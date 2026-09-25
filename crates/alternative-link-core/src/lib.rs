@@ -8,6 +8,7 @@ pub mod engine;
 pub mod discovery;
 pub mod helper;
 pub mod errors;
+pub mod prompts;
 
 pub struct SharedState {
     pub finished: CancellationToken,

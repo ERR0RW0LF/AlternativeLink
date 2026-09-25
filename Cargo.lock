@@ -37,6 +37,10 @@ dependencies = [
 [[package]]
 name = "alternative-link-interactive"
 version = "0.1.6"
+dependencies = [
+ "alternative-link-core",
+ "tokio",
+]
 
 [[package]]
 name = "anstream"

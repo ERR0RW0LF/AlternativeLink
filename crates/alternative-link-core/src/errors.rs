@@ -10,6 +10,9 @@ pub enum DiscoveryError {
 
     /// Unable to cast user input to a valid usize.
     InputParsing { os_error: String},
+
+    /// User didn't chose a valid interface.
+    ChoiceError { os_error: String},
 } 
 
 impl fmt::Display for DiscoveryError {
@@ -23,6 +26,9 @@ impl fmt::Display for DiscoveryError {
             },
             DiscoveryError::InputParsing { os_error } => {
                 write!(f, "unable to parse user input to a usize: {os_error}")
+            },
+            DiscoveryError::ChoiceError { os_error } => {
+                write!(f, "unable to get a valid interface from user choice: {os_error}")
             }
         }
     }
