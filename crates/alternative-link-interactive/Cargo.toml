@@ -11,4 +11,4 @@ repository.workspace = true
 [dependencies]
 tokio.workspace = true
 alternative-link-core.workspace = true
-tokio_util.workspace = true
+tokio-util.workspace = true
