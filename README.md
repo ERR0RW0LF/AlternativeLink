@@ -14,6 +14,11 @@ Implementation of the SharkLink protocol for PC and other devices.
 - [ ] alternative improved protocol
 - [ ] bash port for the shark jack display of the alternative
 
+## Demo
+
+https://github.com/user-attachments/assets/b31c2f4b-ce1e-4821-a2f7-62461494fa3d
+
+
 ## How to try it out
 
 ### One Shark Jack Display & One PC
