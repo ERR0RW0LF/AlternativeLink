@@ -185,10 +185,10 @@ async fn main() -> io::Result<()>{
     trace!("Pushed the broadcast_task to tasks.");
 
     let shared_state_clone = shared_state.clone();
-    let directly_working_clone = direct_working.clone();
+    let direct_working_clone = direct_working.clone();
     let direct_working_notify_clone = direct_working_notify.clone();
     let engine_args_clone = engine_args.clone();
-    tasks.push(tokio::spawn(async move {listen_all_messages(sock_listen, shared_state_clone, ipaddr, directly_working_clone, direct_working_notify_clone, engine_args_clone).await}));
+    tasks.push(tokio::spawn(async move {listen_all_messages(sock_listen, shared_state_clone, ipaddr, direct_working_clone, direct_working_notify_clone, engine_args_clone).await}));
     trace!("Pushed the listen_all_messages to tasks.");
     
     
