@@ -10,6 +10,9 @@ pub mod helper;
 pub mod errors;
 pub mod prompts;
 
+#[macro_use]
+pub mod macros;
+
 pub struct SharedState {
     pub finished: CancellationToken,
     pub other_link_ip: watch::Sender<Option<Ipv4Addr>>,

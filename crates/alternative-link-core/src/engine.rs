@@ -3,7 +3,7 @@ use std::{io, net::Ipv4Addr, process::exit, sync::{Arc, atomic::{AtomicBool, Ord
 use tokio::sync::{Notify, watch};
 use tracing::{debug, info, trace, warn};
 
-use crate::{SharedForSenders, SharedState, helper::report_status, protocol::{Code, Message}};
+use crate::{SharedForSenders, SharedState, confirm_direct_connection, helper::report_status, protocol::{Code, Message}};
 
 const CODE: usize = 1337;
 
@@ -119,6 +119,7 @@ pub async fn broadcast_task(shared_state: Arc<SharedForSenders>, msg: Vec<u8>, b
 
 
 
+
 pub async fn direct_comms_check_task(
     shared_state: Arc<SharedForSenders>, ip_receiver: watch::Receiver<Option<Ipv4Addr>>, 
     direct_working: Arc<AtomicBool>, direct_working_notify: Arc<Notify>,
@@ -133,36 +134,14 @@ pub async fn direct_comms_check_task(
     loop {
         let is_working = direct_working.load(Ordering::Relaxed);
         if is_working {
-            let ip= if let Some(ipa) = *ip_receiver.borrow() {
-                ipa
-            } else {
-                continue;
-            };
-            report_status(
-                &args, 
-                "Connection working", 
-                &[("state","direct connection confirmed"),("peer_ip", &ip.to_string())],
-            );
-            shared_state.cancel.cancel();
-            break;
+            confirm_direct_connection!(ip_receiver,shared_state, args);
         }
 
         tokio::select! {
             _ = shared_state.cancel.cancelled() => break,
             _ = direct_working_notify.notified() => {
                 if direct_working.load(Ordering::Relaxed) {
-                    let ip = if let Some(ipa) = *ip_receiver.borrow() {
-                        ipa
-                    } else {
-                        continue;
-                    };
-                    report_status(
-                        &args, 
-                        "Connection working", 
-                        &[("state","direct connection confirmed"),("peer_ip", &ip.to_string())],
-                    );
-                    shared_state.cancel.cancel();
-                    break;
+                    confirm_direct_connection!(ip_receiver,shared_state,args);
                 }
             },
             _ = probe_interval.tick(), if !is_working => {
